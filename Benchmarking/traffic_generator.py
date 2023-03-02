@@ -38,7 +38,7 @@ def parse_args():
 args = parse_args()
 
 if args.protocol == 'udp':
-	result = UDP_benchmark.RunUDPBenchmark(args.dst,args.port)
+	result = UDP_benchmark.UDPBenchmarkSend(args.dst,args.port,args.size)
 elif args.distribution == 'tcp':
     pass
 else:
