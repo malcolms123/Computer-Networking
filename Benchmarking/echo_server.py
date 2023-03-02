@@ -1,5 +1,6 @@
 import argparse
 import UDP_server
+import TCP_server
 
 def parse_args():
     
@@ -22,4 +23,11 @@ def parse_args():
 args = parse_args()
 
 if args.protocol == 'udp':
-    UDP_server.RunUDPServer(args.port)
+    UDP_server.RunUDPServer(args.addr,args.port)
+elif args.protocol == 'tcp':
+    TCP_server.RunTCPServer(args.addr,args.port)
+else:
+    print('Unknown protocol.')
+    quit()
+
+
