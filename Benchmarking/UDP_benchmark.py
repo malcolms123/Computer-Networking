@@ -1,30 +1,47 @@
 import socket
 import time
 import threading
+import queue
 
-end = 0
-packetsReceived = 0
 
-def UDPBenchmarkSend(addr,port,size):
+def UDPBenchmarkSend(addr,port,size,nPackets,delay):
     udpSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-    udpSocket.settimeout(5)
+    udpSocket.settimeout(1)
 
     # Do I need to factor in header to size?
     packet = bytes(size)
 
-    receiver = threading.Thread(target=UDPBenchmarkReceive,args=(udpSocket))
+    q = queue.Queue()
+
+    receiver = threading.Thread(target=UDPBenchmarkReceive,args=[udpSocket,q])
     receiver.start()
 
     start = time.time()
-    for i in range(1000):
+    lastTime = start
+    count = 0
+    for i in range(nPackets):
         udpSocket.sendto(packet,(addr,port))
-        udpSocket.recvfrom(4096)
+        while time.time() < lastTime + delay:
+            pass
+        lastTime = time.time()
+        count += 1
+    endSend = time.time()
+
 
     receiver.join()
 
-    return end-start
+    endReceive = q.get()
+    received = q.get()
 
-def UDPBenchmarkReceive(socket):
+
+    total_time_send = round(1e3*(endSend-start),3)
+    total_time_receive = round(1e3*(endReceive-start),3)
+    total_sent = count
+    loss_rate = round((1-received/count)*100,3)
+
+    return total_time_send, total_time_receive, total_sent, loss_rate
+
+def UDPBenchmarkReceive(udp_socket,q):
     timedOut = False
     count = 0
     while not timedOut:
@@ -34,5 +51,5 @@ def UDPBenchmarkReceive(socket):
             endTime = time.time()
         except socket.timeout:
             timedOut = True
-    end = endTime
-    packetsReceived = count
+    q.put(endTime)
+    q.put(count)
