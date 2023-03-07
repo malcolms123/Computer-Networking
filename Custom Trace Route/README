@@ -1,0 +1,3 @@
+run from command line
+
+sudo python3 customTraceRoute.py [HOST] [--max_hops max hops to host]
