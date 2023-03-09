@@ -11,5 +11,5 @@ def RunUDPServer(addr,port):
         data,caddress = udpSocket.recvfrom(4096)
         #print(caddress[0] + '|' + str(caddress[1]) + ': ' + data.decode())
         pcount += 1
-        print(f"Packets echoed: {pcount}")
         udpSocket.sendto(data,caddress)
+        print(f"Packets echoed: {pcount}")

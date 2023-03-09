@@ -1,4 +1,4 @@
-import argparse, customSockets, queue, threading, time
+import argparse, customSockets, queue, threading, time, struct
 
 # function for parsing arguments
 def parse_args():
@@ -16,7 +16,11 @@ def parse_args():
 def BenchmarkReceive(benchmarker,q):
     # storing timeout boolean and received packet count
     timedOut = False
+    endTime = time.time()
     count = 0
+    lastSeqNo = -1
+    RTTs = []
+    OOOs = []
     # listening until timedout
     while not timedOut:
         # receive data
@@ -27,9 +31,16 @@ def BenchmarkReceive(benchmarker,q):
             # count received packet and time
             count += 1
             endTime = time.time()
+            lastSeqNo += 1
+            seqno = struct.unpack("!Q",data[0:8])[0]
+            sendTime = struct.unpack("!Q",data[8:16])[0]/1e9
+            RTTs.append(endTime-sendTime)
+            OOOs.append(lastSeqNo==seqno)
     # pass information to main thread
     q.put(endTime)
     q.put(count)
+    q.put(RTTs)
+    q.put(OOOs)
 
 # parsing command line arguments
 args = parse_args()
@@ -41,10 +52,10 @@ print(f"Benchmarking {args.protocol} protocol pinging {args.dst}|{args.port}")
 nPackets = int(args.bandwidth*args.duration)
 if args.distribution == 'burst':
     delay = 0
-    print(f"Bursting {nPackets} packets of size {args.size} bytes.")
+    print(f"Attempting to burst {nPackets} packets of size {args.size} bytes.")
 elif args.distribution == 'uniform':
     delay = 1/args.bandwidth
-    print(f"Sending {nPackets} packets of size {args.size} bytes uniformly over {args.duration} seconds.")
+    print(f"Attempting to send {nPackets} packets of size {args.size} bytes uniformly over {args.duration} seconds.")
 else:
     print('Unknown distribution.')
     quit()
@@ -58,11 +69,6 @@ else:
 	print('Unknown protocol.')
 	quit()
 
-
-
-# Do I need to factor in header to size?
-packet = bytes(args.size)
-
 q = queue.Queue()
 
 receiver = threading.Thread(target=BenchmarkReceive,args=[benchmarker,q])
@@ -72,9 +78,16 @@ start = time.time()
 lastTime = start
 count = 0
 for i in range(nPackets):
-    benchmarker.send(packet)
+    if time.time() >= start + args.duration:
+        break
     while time.time() < lastTime + delay:
         pass
+    seqno = struct.pack("!Q",i)
+    send_time_ns = struct.pack("!Q",int(1e9 * time.time()))
+    payload = seqno + send_time_ns
+    packet = payload + bytes(args.size-16)
+    benchmarker.send(packet)
+    
     lastTime = time.time()
     count += 1
 endSend = time.time()
@@ -84,12 +97,19 @@ receiver.join()
 
 endReceive = q.get()
 received = q.get()
+RTTs = q.get()
+OOOs = q.get()
 
 total_time_send = round(1e3*(endSend-start),3)
 total_time_receive = round(1e3*(endReceive-start),3)
 total_sent = count
 loss_rate = round((1-received/count)*100,3)
+ooo_count = OOOs.count(False)
+ooo_rate = round((ooo_count/received)*100,3)
+avg_rtt = round(sum(RTTs)/len(RTTs)*1e3,3)
 
 print(f"{total_sent} packets sent over {total_time_send} ms.")
 print(f"Final packet received after {total_time_receive} ms.")
 print(f"Loss rate: {loss_rate}%")
+print(f"OOO rate: {ooo_rate}%")
+print(f"RTT avg: {avg_rtt} ms.")
