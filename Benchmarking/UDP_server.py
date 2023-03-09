@@ -12,4 +12,4 @@ def RunUDPServer(addr,port):
         #print(caddress[0] + '|' + str(caddress[1]) + ': ' + data.decode())
         pcount += 1
         udpSocket.sendto(data,caddress)
-        print(f"Packets echoed: {pcount}")
+        # print(f"Packets echoed: {pcount}")

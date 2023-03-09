@@ -1,7 +1,7 @@
 import socket
 
 class UDPSocket():
-    def __init__(self,addr,port,timeout=1):
+    def __init__(self,addr,port,timeout=5):
         self.addr = addr
         self.port = port
         self.skt = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
@@ -19,7 +19,7 @@ class UDPSocket():
 
 
 class TCPSocket():
-    def __init__(self,addr,port,timeout=1):
+    def __init__(self,addr,port,timeout=5):
         self.addr = addr
         self.port = port
         self.skt = socket.socket(socket.AF_INET,socket.SOCK_STREAM)

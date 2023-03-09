@@ -23,6 +23,6 @@ def RunTCPServer(addr,port):
 			else:
 				# print(callCard + ': ' + data.decode())
 				pcount += 1
-				print(f"Packets echoed: {pcount}")
+				# print(f"Packets echoed: {pcount}")
 				csocket.sendall(data)
 

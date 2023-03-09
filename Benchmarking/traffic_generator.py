@@ -1,4 +1,4 @@
-import argparse, customSockets, queue, threading, time, struct
+import argparse, customSockets, queue, threading, time, struct, statistics
 
 # function for parsing arguments
 def parse_args():
@@ -19,6 +19,7 @@ def BenchmarkReceive(benchmarker,q):
     endTime = time.time()
     count = 0
     lastSeqNo = -1
+    lastLastSeqNo = -2
     RTTs = []
     OOOs = []
     # listening until timedout
@@ -31,11 +32,15 @@ def BenchmarkReceive(benchmarker,q):
             # count received packet and time
             count += 1
             endTime = time.time()
-            lastSeqNo += 1
             seqno = struct.unpack("!Q",data[0:8])[0]
             sendTime = struct.unpack("!Q",data[8:16])[0]/1e9
             RTTs.append(endTime-sendTime)
-            OOOs.append(lastSeqNo==seqno)
+            if lastLastSeqNo < lastSeqNo and lastSeqNo < seqno:
+                OOOs.append(False)
+            else:
+                OOOs.append(True)
+            lastLastSeqNo = lastSeqNo
+            lastSeqNo += 1
     # pass information to main thread
     q.put(endTime)
     q.put(count)
@@ -104,12 +109,15 @@ total_time_send = round(1e3*(endSend-start),3)
 total_time_receive = round(1e3*(endReceive-start),3)
 total_sent = count
 loss_rate = round((1-received/count)*100,3)
-ooo_count = OOOs.count(False)
+ooo_count = OOOs.count(True)
 ooo_rate = round((ooo_count/received)*100,3)
+min_rtt = round(min(RTTs)*1e3,3)
 avg_rtt = round(sum(RTTs)/len(RTTs)*1e3,3)
+med_rtt = round(statistics.median(RTTs)*1e3,3)
+max_rtt = round(max(RTTs)*1e3,3)
 
 print(f"{total_sent} packets sent over {total_time_send} ms.")
 print(f"Final packet received after {total_time_receive} ms.")
 print(f"Loss rate: {loss_rate}%")
 print(f"OOO rate: {ooo_rate}%")
-print(f"RTT avg: {avg_rtt} ms.")
+print(f"RTT min/mean/median/max: {min_rtt}/{avg_rtt}/{med_rtt}/{max_rtt} ms.")
