@@ -1,5 +1,6 @@
 import socket
 
+# UDP socket class
 class UDPSocket():
     def __init__(self,addr,port,timeout=5):
         self.addr = addr
@@ -17,7 +18,7 @@ class UDPSocket():
         except:
             return None, True
 
-
+# TCP socket class
 class TCPSocket():
     def __init__(self,addr,port,timeout=5):
         self.addr = addr

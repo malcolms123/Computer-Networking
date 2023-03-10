@@ -26,7 +26,6 @@ def BenchmarkReceive(benchmarker,q,size):
     while not timedOut:
         # receive data
         data, timeout = benchmarker.receive()
-        print(struct.unpack("!Q",data[0:8])[0])
         if timeout:
             timedOut = True
         else:
@@ -75,39 +74,44 @@ else:
 	print('Unknown protocol.')
 	quit()
 
+# packet reception done with threading
 q = queue.Queue()
-
 receiver = threading.Thread(target=BenchmarkReceive,args=[benchmarker,q,args.size])
 receiver.start()
 
-
+# preparing to send
 start = time.time()
 cutoff = start + args.duration
 lastTime = start
 count = 0
-
+# sending until out of time
 for i in range(nPackets):
+    # cutting of send if time limit reached
     if time.time() >= cutoff:
         break
+    # delaying before sending
     while time.time() < lastTime + delay:
         pass
     lastTime = time.time()
+    # preparing packet
     seqno = struct.pack("!Q",i)
     send_time_ns = struct.pack("!Q",int(1e9 * time.time()))
     payload = seqno + send_time_ns
     packet = payload + bytes(args.size-16)
+    # sending packet
     benchmarker.send(packet)
     count += 1
 endSend = time.time()
 
-
+# waiting for receiver to finish
 receiver.join()
-
+# interpretting from reception thread
 endReceive = q.get()
 received = q.get()
 RTTs = q.get()
 OOOs = q.get()
 
+# calculating statistics
 total_time_send = round(1e3*(endSend-start),3)
 total_time_receive = round(1e3*(endReceive-start),3)
 total_sent = count
@@ -119,6 +123,7 @@ avg_rtt = round(sum(RTTs)/len(RTTs)*1e3,3)
 med_rtt = round(statistics.median(RTTs)*1e3,3)
 max_rtt = round(max(RTTs)*1e3,3)
 
+# printing results
 print(f"{total_sent} packets sent over {total_time_send} ms.")
 print(f"Final packet received after {total_time_receive} ms.")
 print(f"Loss rate: {loss_rate}%")
