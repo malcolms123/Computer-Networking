@@ -27,11 +27,7 @@ class TCPSocket():
         self.skt.settimeout(1)
 
     def send(self,packet):
-        try:
-            data = self.skt.sendall(packet)
-            return data
-        except:
-            return None
+        self.skt.sendall(packet)
 
     def receive(self):
         try:

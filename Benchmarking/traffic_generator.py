@@ -6,14 +6,14 @@ def parse_args():
     parser.add_argument('--protocol',default='udp',help='Protocol to use [udp,tcp]',choices=['udp','tcp'])
     parser.add_argument('--dst',default = '0.0.0.0',help='Destination IP address.')
     parser.add_argument('--port',help='Destination port.',default=12345,type=int)
-    parser.add_argument('--size',help='Packet size in bytes.',default=1000,type=int)
+    parser.add_argument('--size',help='Packet size in bytes.',default=100,type=int)
     parser.add_argument('--bandwidth',help='Bandwidth in packets/second.',default=10,type=float)
     parser.add_argument('--distribution',help='Packet distribution over time.',default='burst',choices=['burst','uniform'])
     parser.add_argument('--duration',help='Benchmark duration in seconds.',default=10,type=float)
     return parser.parse_args()
 
 # function for receiving a stream of packets until timeout
-def BenchmarkReceive(benchmarker,q):
+def BenchmarkReceive(benchmarker,q,size):
     # storing timeout boolean and received packet count
     timedOut = False
     endTime = time.time()
@@ -26,6 +26,7 @@ def BenchmarkReceive(benchmarker,q):
     while not timedOut:
         # receive data
         data, timeout = benchmarker.receive()
+        print(struct.unpack("!Q",data[0:8])[0])
         if timeout:
             timedOut = True
         else:
@@ -76,24 +77,26 @@ else:
 
 q = queue.Queue()
 
-receiver = threading.Thread(target=BenchmarkReceive,args=[benchmarker,q])
+receiver = threading.Thread(target=BenchmarkReceive,args=[benchmarker,q,args.size])
 receiver.start()
 
+
 start = time.time()
+cutoff = start + args.duration
 lastTime = start
 count = 0
+
 for i in range(nPackets):
-    if time.time() >= start + args.duration:
+    if time.time() >= cutoff:
         break
     while time.time() < lastTime + delay:
         pass
+    lastTime = time.time()
     seqno = struct.pack("!Q",i)
     send_time_ns = struct.pack("!Q",int(1e9 * time.time()))
     payload = seqno + send_time_ns
     packet = payload + bytes(args.size-16)
     benchmarker.send(packet)
-    
-    lastTime = time.time()
     count += 1
 endSend = time.time()
 
